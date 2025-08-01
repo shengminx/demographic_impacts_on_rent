@@ -1,0 +1,447 @@
+---
+title:  "What Drives Rent?"
+subtitle: "A deep dive into people, place and price." 
+date: today
+date-format: long 
+author: 
+  - name: Shengmin Xiao 
+    email: shengminx@berkley.edu 
+    affiliations: 
+      - name: UC Berkeley, School of Information 
+        address: 102 South Hall Drive
+        city: Berkeley, CA 
+        postal-code: 94720
+  - name: Alex Tenpas
+    email: alextenpas@berkeley.edu 
+    affiliations: 
+      - name: UC Berkeley, School of Information
+        address: 102 South Hall Drive
+        city: Berkeley, CA 
+        postal-code: 94720
+  - name: Denvir Higgins
+    email: dehiggin@berkeley.edu
+    affiliations: 
+      - name: UC Berkeley, School of Information
+        address: 102 South Hall Drive
+        city: Berkeley, CA 
+        postal-code: 94720
+format: 
+  pdf: 
+    documentclass: scrartcl
+    toc: false 
+    colorlinks: true
+    cap-location: bottom
+    header-includes:
+      - \usepackage{graphicx}
+execute: 
+  echo: false 
+  warning: false 
+  message: false 
+bibliography: references.bib
+citeproc: true
+biblio-title: References
+link-citations: true
+---
+
+```{r install library}
+library(dplyr)
+library(tidyverse)
+library(patchwork)
+library(reshape2)
+library(sandwich) 
+library(stargazer)
+library(readr)
+library(car)
+library(ggplot2)
+library(lmtest)
+library(broom)
+library(tidyr)
+library(effects)
+library(lmtest)
+library(MASS)
+library(openxlsx)
+library(scales)
+library(e1071)
+library(quarto)
+```
+
+```{r set plotting theme}
+theme_set(theme_minimal())
+```
+
+```{r func}
+get_robust_se <- function(vcov) { 
+  se_ <- sqrt(diag(vcov))
+  return(se_)
+  }
+```
+
+```{r data}
+raw_data <- read_csv("../data/processed/regional_sampled_data.csv")
+colnames(raw_data) <- make.names(colnames(raw_data))
+cols_to_numeric <- c("Median.Age",
+                     "Percent.Males",
+                     "Percent.Race..White",
+                     "Percent.Race..Black",
+                     "Percent.Race..Native.or.Alaskan",
+                     "Percent.Race..Asian",
+                     "Percent.Race..Native.Hawaiian.or.Pacific.Islander",
+                     "Percent.Race..Hispanic.or.Latino",
+                     "Percent.Race..Two.or.more.races",
+                     "Percent.speak.another.language.at.home",
+                     "Percent.never.married",
+                     "Percent.married",
+                     "Percent.divorced",
+                     "Percent.widowed",
+                     "Percent.less.than.high.school",
+                     "Percent.high.school.graduate",
+                     "Percent.some.college.or.associates",
+                     "Percent.college.graduate",
+                     "Percent.graduate.degree",
+                     "Median.income.in.past.year",
+                     "Percent.born.in.state.of.residence",
+                     "Percent..100.poverty.status",
+                     "SAFMR.1BR")
+raw_data[cols_to_numeric] <- lapply(raw_data[cols_to_numeric], function(x) {
+  as.numeric(gsub("[^0-9\\.]", "", as.character(x)))})
+
+data <- raw_data[cols_to_numeric]
+
+better_cols <- c("Median.Age",
+                 # "Percent.Males",
+                 "Percent.Race..Black",
+                 "Percent.Race..Asian",
+                 "Percent.Race..Hispanic.or.Latino",
+                 "Percent.Race..Two.or.more.races",
+                 "Percent.less.than.high.school",
+                 "Percent.married",
+                 "Median.income.in.past.year",
+                 "Percent.born.in.state.of.residence",
+                 "Percent..100.poverty.status",
+                 "Percent.speak.another.language.at.home",
+                 "SAFMR.1BR")
+
+better_data <- raw_data[better_cols]
+sample_index <- sample(1:nrow(better_data), size = 0.3 * nrow(better_data))
+sample_data <- better_data[sample_index, ]
+
+```
+
+```{r estimate models}
+#| echo: false
+# Full model
+model1 <- lm(SAFMR.1BR ~ Median.Age + Percent.married + Percent.Race..Black + Percent.Race..Asian +
+              Percent.Race..Two.or.more.races +
+               Percent.less.than.high.school +  Median.income.in.past.year +
+               Percent.born.in.state.of.residence + Percent..100.poverty.status + Percent.speak.another.language.at.home, data = sample_data)
+
+# Reduced model 2
+model2 <- lm(SAFMR.1BR ~ Percent.Race..Black +
+               Percent.Race..Asian + Percent.less.than.high.school + Median.income.in.past.year , 
+             data = sample_data)
+
+# Reduced model 3
+model3 <- lm(SAFMR.1BR ~ Median.income.in.past.year, data = sample_data)
+
+best_model <- step(model1, direction = "both", trace = 0)
+
+robust_se1 <- vcovHC(model1, type = "HC1")
+robust_se2 <- vcovHC(model2, type = "HC1")
+robust_se3 <- vcovHC(model3, type = "HC1")
+robust_se_best <- vcovHC(best_model, type = "HC1")
+
+```
+### 1. Introduction
+
+As young professionals and early-career individuals grappling with housing unaffordability, we seek to understand how much socioeconomic disparities influence rental markets. This analysis explores the patterns in rent prices across the United States, paying particular attention to its relationship with demographic and socioeconomic data. The central question guiding this research is: What patterns and associations can be observed between rent prices and the demographics of the people across different regions? While the relationship between rent prices and demographics has been widely researched, with many studies aiming to identify key predictors and understand their impact on housing affordability, this paper contributes by applying several regression models and integrating geographic data into the analysis. By identifying these linkages, we aim to provide a data-driven baseline for policymakers, urban planners, advocacy groups, and particularly for renters like ourselves to make informed decisions, advocate for fairer housing policies, and navigate the rental market with greater awareness of systemic inequalities. We predict that income will have the most direct impact on housing prices, given how Section 8 housing prices are set, with educational attainment and marital status also showing strong correlations. 
+
+### 2. Description of the Data Source
+
+To explore these associations, 3 publicly available datasets were utilized. The U.S. Census produces population, demographic, and housing unit estimates through the annual American Community Survey (ACS) that collects data continuously throughout the year. Every year, 3.5 million addresses are randomly sampled, and responses are required by law. The S0601 dataset for 2023 [@uscensus_s0601] is used which contains population characteristics from each zip code such as income, race, and education. The Department of Housing and Urban Development’s (HUD) Office of Policy Development and Research establishes the Fair Market Rents (FMR) [@hud_fmr] at least annually for the purpose of determining housing assistance payments as part of the Section 8. The FMR is computed using the Census Bureau’s geographic area definition, Census Bureau’s 5-year ACS data as the base year rent, and Bureau of Labor Statistics’s Consumer Price of Index as the rent inflation rate. HUD also produces the HUD-USPS Zip Crosswalk Files [@hud_zipcrosswalk] which associates Census Bureau geographies with USPS Vacancy Data which is updated quarterly. This analysis uses the 2023 Q2 ZIP-TRACT crosswalk file to filter out zip codes with low residential ratio. 
+
+### 3. Data Wrangling
+
+The data pipeline, constructed in Python with NumPy and Pandas, combines data from the three data sources. Data source 1 contained 33773 rows and 427 columns, including a ‘Geography’ column from which the zip codes were extracted. The column name codes from data source 1 are matched to the data dictionary provided for this dataset by the Census. Data source 2 had 27331 rows and 18 columns, including zip code, HUD area code, rent area name, median rent value of five housing types by number of bedrooms, as well as the 90th percentile and 110th percentile rent values. After merging data source 1 and 2 on zip code values, there were 20855 rows and 445 columns total. This combined dataset was then filtered down to 28 columns to gather demographic information such as race, age, gender, marital status, educational achievement, income, and languages spoken at home, as well as median rent values for the five housing types, rent area, and zip code. Data source 3, containing 188563 rows and 8 columns, is filtered on residential ratios per tract, which is a sub group within a zip code. A tract of a zip code is defined as residential if there is a predominant residential population, which is determined to be 80% or more housing units. The filtered output of data source 3 has 35434 rows and 2 columns, one zip code column and one ratio column. Finally, after merging all three data sources, the output data frame is 18988 rows and 36 columns. To ensure identical samples from equal distributions, we choose 1000 random samples from five regions of states - the Midwest, Northeast, Southeast, Southwest, and Northwest. As a result, the processed dataset has 5000 rows and 37 columns, with one column added for each region. See the resulting columns in Appendix A. 
+
+### 4. Operationalization
+
+To analyze how demographics relate to rent prices across U.S. regions, we define our outcome variable as the Small Area Fair Market Rent 1BR (SAFMR.1BR) for one-bedroom units, drawn from HUD's rent dataset across five regions. We selected demographic predictors including median household income, racial composition, the percentage of adults that have less than a high school degree, residents who are born in-state, and marital status. These variables capture key aspects of economic well-being and social structure, and were initially chosen based on theoretical relevance. For data preparation, we started with 250000 rows and 450 columns across three datasets. Merging these sources on ZIP code resulted in a removal of 230000 rows and 410 columns. ZIP codes with missing values were excluded before random sampling to maintain data quality and ensure accurate calculations. The final data frame focused on isolating residential areas and balanced regional representation to ensure compatibility across diverse geographic contexts. While various scaling techniques were explored to potentially improve model performance, they did not yield substantial improvements and, in some instances, complicated interpretation. Therefore, the unscaled variables were retained for the primary analysis. During statistical analysis, VIF values were used to assess multicollinearity, of which several variables were part of a closed system that added up to 100% and skyrocketed the VIF values to 40,000. Upon removing portions of these closed systems based on very and extremely significant p-values, VIF values ranged from 1.3 to 2.5. This methodological design supports our central inquiry into how demographic disparities shape rent prices, reflecting the lived realities of renters navigation affordability challenges across the U.S.  
+
+```{r vif}
+vif(best_model)
+```
+
+### 5. Model Specification
+
+The stargazer plot in Appendix B tests the presence of each predictor on the linear regression, aiming to maximize the F-statistic and R2  value. Model 4 is the optimized model, dropping percent race two or more races and percent poverty status in its analysis. The coefficients of this optimized model highlight important relationships between predictor and 1-bedroom rent prices. In particular, income, age, and racial composition are strong predictors of these prices. Education levels and local nativity show a notable negative relationship. Language diversity correlates positively with higher rent levels. Some predictors, like median income in the past year and percent race black, contribute weakly to the optimized model. 
+The predictor heat map visualizes the correlation between predictors. The red diagonal is highlighting the correlation of a predictor with itself - none of the relationships between predictors are as stronglsy correlated as the center diagonal. 
+
+```{r correlation}
+vars <- c("Median.Age", "Percent.Race..Asian", "Percent.Race..Black",
+          "Percent.less.than.high.school", "Percent.married", "Median.income.in.past.year",
+          "Percent.born.in.state.of.residence", "Percent.speak.another.language.at.home")
+cor_matrix <- cor(raw_data[, vars], use = "complete.obs")
+cor_melt <- melt(cor_matrix)
+
+# Reverse the order of factor levels for Var2
+cor_melt$Var2 <- factor(cor_melt$Var2, levels = rev(levels(cor_melt$Var2)))
+
+# Remove the diagonal and upper triangle
+cor_melt <- cor_melt[as.numeric(factor(cor_melt$Var1, levels = levels(cor_melt$Var1))) + 
+                    as.numeric(factor(cor_melt$Var2, levels = levels(cor_melt$Var2))) < 
+                    length(levels(cor_melt$Var1)) + 1, ]
+
+# Additionally remove the diagonal elements
+cor_melt <- cor_melt[cor_melt$Var1 != cor_melt$Var2, ]
+
+ggplot(cor_melt, aes(x = Var1, y = Var2, fill = value)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = round(value, 2)), color = "black", size = 1.9) +
+  scale_fill_gradient2(low = "blue", high = "red", mid = "white",
+                       midpoint = 0, limit = c(-1,1), space = "Lab",
+                       name="Correlation") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
+    panel.grid = element_blank()) +
+  labs(title = "Correlation Heatmap",
+       x = "",
+       y = "")
+```
+### 6. Model Assumptions
+
+
+1. **Independent and Identical Distribution (IID)**: Data was drawn from equal distributions of regions across the U.S. Each data point is a Zip Code, which are independent from each other.
+```{r IID, fig.height=1.8, fig.width=4, fig.align='center'}
+ggplot(raw_data, aes(x = Region)) +
+  geom_bar(fill = "skyblue") +
+  labs(
+    title = "Number of Data Points per Region",
+    x = "Region",
+    y = "Number of Data Points"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    axis.text.x = element_text(angle = 0, vjust = 0.5)
+  )
+```
+
+
+
+2. **Constant Error Variance**: Homoskedastic Errors can be rejected with a Breusch-Pagan values of 223.39 and P-Value < 2.2e-16.
+```{r error variance, fig.height=3, fig.width=7}
+
+plot(best_model, which=1)
+```
+
+```{r error variance2}
+#| echo: false
+
+bptest(best_model)
+```
+
+3. **Normal Distribution of Errors**: There is a heavy tailed distribution in the form of a leptokurtic kurtosis meaning normal distribution of error can be rejected. 
+```{r normal distribution of errors, fig.height=3, fig.width=7}
+#| echo: false
+plot(best_model, which=2)
+model_data <- sample_data[vars]
+model_l_residuals <- residuals(best_model)
+kurtosis(model_l_residuals)
+```
+
+
+4. **Linear Conditional Expectation**: There exists a linear fit between predictors and dependent variables. However, heavy tailed distribution from previous assumptions lead to the rejection of the linear conditional expectation.
+```{r blp, fig.height=2, fig.width=7}
+plot_1 <- sample_data %>%
+  ggplot(aes(x=Median.Age + Percent.Race..Asian +
+               Percent.Race..Black + 
+               Percent.less.than.high.school + Percent.married + Median.income.in.past.year +
+               Percent.born.in.state.of.residence + Percent.speak.another.language.at.home, y=SAFMR.1BR)) +
+  geom_point() + geom_smooth(method='lm') + labs(x = "Composite Predictor Score",
+                                                 y = "1BR Rent Value")
+plot_1
+```
+### 7. Model Results and Interpretation
+
+The results of our multiple regression analysis reveal significant relationships between demographic factors and one-bedroom rent prices across U.S. regions. Model 4, our optimized model, explains approximately 63% of variation in one-bedroom rent prices (adjusted R² of 0.631) with high statistical significance (F = 321.897, p < 0.01). Demographic factors show varied relationships with rent prices. Median age (β = 2.866, p < 0.05) and percentage of Asian residents (β = 16.393, p < 0.01) both positively correlate with higher rents. Conversely, percentage married (β = -4.298, p < 0.01), percentage with less than high school education (β = -7.663, p < 0.01), and percentage born in-state (β = -4.278, p < 0.01) all demonstrate significant negative relationships with rent prices. Language diversity (β = 8.360, p < 0.01), measured by the percentage speaking another language at home, shows a strong positive association with rent, suggesting that multicultural areas have (different stronger word for have…) higher housing costs. Median income shows a modest effect increasing rent prices $0.015 for every dollar earned. These findings reveal that rental markets reflect complex socioeconomic patterns beyond simple income measures with implications for housing policy addressing affordability challenges across demographic groups.
+```{r predictions}
+remaining_index <- setdiff(1:nrow(better_data), sample_index)
+remaining_data <- better_data[remaining_index, ]
+
+# Make predictions on the full dataset
+predictions <- predict(best_model, newdata = remaining_data)
+
+plot(remaining_data$SAFMR.1BR, predictions, 
+     xlab = "Actual Rent Values", 
+     ylab = "Predicted Rent Values", 
+     col = 'blue', 
+     pch = 16)
+
+abline(a = 0, b = 1, col = 'red', lty = 2)
+```
+
+```{r lm by region}
+#| echo: false
+#| warning: false
+#| include: false
+#| 
+
+data = read_csv("../data/processed/regional_sampled_data.csv")
+data = data.frame(data) %>%
+  mutate(across(c(
+    Median.Age,
+    Percent.less.than.high.school,
+    Percent.some.college.or.associates,
+    Percent.college.graduate,
+    Percent.graduate.degree,
+    Median.income.in.past.year,
+    Percent..100.poverty.status,
+    Percent..100.TO.149.poverty.status,
+    Percent..150.poverty.status,
+    Percent.high.school.graduate
+  ), as.numeric))
+
+
+model_NE = lm(SAFMR.1BR ~ Median.Age+Percent.Males+Percent.Females+
+                Percent.Race..White+Percent.Race..Black+Percent.Race..Native.or.Alaskan+Percent.Race..Asian+Percent.Race..Native.Hawaiian.or.Pacific.Islander+Percent.Race..Hispanic.or.Latino+Percent.speak.another.language.at.home+
+                Percent.never.married+Percent.married+Percent.divorced+Percent.widowed+Percent.Race..Two.or.more.races+
+                Percent.less.than.high.school+Percent.high.school.graduate+Percent.some.college.or.associates+Percent.college.graduate+Percent.graduate.degree+
+                Median.income.in.past.year+Percent.born.in.state.of.residence+Percent..100.poverty.status,
+    data = data[data$Region == 'NE',])
+df_NE = data.frame(summary(model_NE)$coefficients)
+df_NE = df_NE %>%
+  mutate(variables = rownames(df_NE), Region = 'NE')
+rownames(df_NE) = 1:nrow(df_NE)
+
+
+
+model_NW = lm(SAFMR.1BR ~ Median.Age+Percent.Males+Percent.Females+
+                Percent.Race..White+Percent.Race..Black+Percent.Race..Native.or.Alaskan+Percent.Race..Asian+Percent.Race..Native.Hawaiian.or.Pacific.Islander+Percent.Race..Hispanic.or.Latino+Percent.speak.another.language.at.home+
+                Percent.never.married+Percent.married+Percent.divorced+Percent.widowed+Percent.Race..Two.or.more.races+
+                Percent.less.than.high.school+Percent.high.school.graduate+Percent.some.college.or.associates+Percent.college.graduate+Percent.graduate.degree+
+                Median.income.in.past.year+Percent.born.in.state.of.residence+Percent..100.poverty.status,
+              data = data[data$Region == 'NW',])
+df_NW = data.frame(summary(model_NW)$coefficients)
+df_NW = df_NW %>%
+  mutate(variables = rownames(df_NW), Region = 'NW')
+rownames(df_NW) = 1:nrow(df_NW)
+ 
+
+
+model_SE = lm(SAFMR.1BR ~ Median.Age+Percent.Males+Percent.Females+
+                Percent.Race..White+Percent.Race..Black+Percent.Race..Native.or.Alaskan+Percent.Race..Asian+Percent.Race..Native.Hawaiian.or.Pacific.Islander+Percent.Race..Hispanic.or.Latino+Percent.speak.another.language.at.home+
+                Percent.never.married+Percent.married+Percent.divorced+Percent.widowed+Percent.Race..Two.or.more.races+
+                Percent.less.than.high.school+Percent.high.school.graduate+Percent.some.college.or.associates+Percent.college.graduate+Percent.graduate.degree+
+                Median.income.in.past.year+Percent.born.in.state.of.residence+Percent..100.poverty.status,
+              data = data[data$Region == 'SE',])
+df_SE = data.frame(summary(model_SE)$coefficients)
+df_SE = df_SE %>%
+  mutate(variables = rownames(df_SE), Region = 'SE')
+rownames(df_SE) = 1:nrow(df_SE)
+
+
+
+model_SW = lm(SAFMR.1BR ~ Median.Age+Percent.Males+Percent.Females+
+                Percent.Race..White+Percent.Race..Black+Percent.Race..Native.or.Alaskan+Percent.Race..Asian+Percent.Race..Native.Hawaiian.or.Pacific.Islander+Percent.Race..Hispanic.or.Latino+Percent.speak.another.language.at.home+
+                Percent.never.married+Percent.married+Percent.divorced+Percent.widowed+Percent.Race..Two.or.more.races+
+                Percent.less.than.high.school+Percent.high.school.graduate+Percent.some.college.or.associates+Percent.college.graduate+Percent.graduate.degree+
+                Median.income.in.past.year+Percent.born.in.state.of.residence+Percent..100.poverty.status,
+              data = data[data$Region == 'SW',])
+df_SW = data.frame(summary(model_SW)$coefficients)
+df_SW = df_SW %>%
+  mutate(variables = rownames(df_SW), Region = 'SW')
+rownames(df_SW) = 1:nrow(df_SW)
+
+
+
+model_MW = lm(SAFMR.1BR ~ Median.Age+Percent.Males+Percent.Females+
+                Percent.Race..White+Percent.Race..Black+Percent.Race..Native.or.Alaskan+Percent.Race..Asian+Percent.Race..Native.Hawaiian.or.Pacific.Islander+Percent.Race..Hispanic.or.Latino+Percent.speak.another.language.at.home+
+                Percent.never.married+Percent.married+Percent.divorced+Percent.widowed+Percent.Race..Two.or.more.races+
+                Percent.less.than.high.school+Percent.high.school.graduate+Percent.some.college.or.associates+Percent.college.graduate+Percent.graduate.degree+
+                Median.income.in.past.year+Percent.born.in.state.of.residence+Percent..100.poverty.status,
+              data = data[data$Region == 'MW',])
+df_MW = data.frame(summary(model_MW)$coefficients)
+df_MW = df_MW %>%
+  mutate(variables = rownames(df_MW), Region = 'MW')
+rownames(df_MW) = 1:nrow(df_MW)
+
+
+df = rbind(df_NE, df_SE, df_SW, df_NW, df_MW) %>%
+  mutate(p_value = Pr...t.., std_error = Std..Error) %>%
+  dplyr::select(`variables`, Region, Estimate, std_error, t.value, p_value) %>%
+  mutate(Estimate = case_when(variables == "Median.income.in.past.year" ~ Estimate*1000, TRUE ~ Estimate),
+         Sig = case_when(p_value < 0.001 ~ '***',
+                         between(p_value, 0.001, 0.01) ~ '**',
+                         between(p_value, 0.01, 0.05) ~ '*',
+                         between(p_value, 0.05, 0.1) ~ '.',
+                         TRUE ~ ''))
+```
+
+```{r plot region}
+#| echo: false
+
+plot1 = df %>%
+  dplyr::select(Region, Estimate, Sig, variables) %>%
+  mutate(var= case_when(variables == "Median.Age" ~ "Median Age",
+                     variables == "Percent.Males" ~ "Male (%)",
+                     variables == "Percent.Race..Black" ~ "Black (%)",
+                     variables == "Percent.Race..Native.or.Alaskan" ~ "Native/Alaskan (%)",
+                     variables == "Percent.Race..Asian" ~ "Asian (%)",
+                     variables == "Percent.Race..Native.Hawaiian.or.Pacific.Islander" ~ "Hawaiian/Pacific Islander (%)",
+                     variables == "Percent.Race..Hispanic.or.Latino" ~ "Hispanic/Latino (%)",
+                     variables == "Median.income.in.past.year" ~ "Median Income ($000)",
+                     variables == "Percent.Race..Two.or.more.races" ~ "2+ Race (%)",
+                     variables == "Percent.less.than.high.school" ~ "Less Than High School (%)",
+                     variables ==  "Percent.married" ~ "Married (%)",
+                     variables ==  "Percent.born.in.state.of.residence" ~ "Born in Residing State (%)",
+                     variables ==  "Percent..100.poverty.status" ~ "Below 100% Poverty Level (%)",
+                     TRUE ~ ""))
+
+plot1 %>% 
+  filter(var %in% c("Median Age",
+                     "Median Income ($000)",
+                     "Male (%)",
+                     "Below 100% Poverty Level (%)",
+                     "Black (%)",
+                     "2+ Race (%)",
+                     "Asian (%)",
+                     "Hispanic/Latino (%)",
+                    "Less Than High School (%)",
+                    "Married (%)",
+                    "Born in Residing State (%)"
+                    )) %>%
+
+  ggplot(aes(x=Region, y=Estimate, fill=factor(Sig, levels=c('', '.', '*', '**', '***'))))+
+  scale_fill_manual(values=c("#e0d7d7", "#ebc3c3", "#d47979","#d63a3a", "#990000")) +
+  facet_wrap(vars(var), ncol=3) +
+  geom_col(position="dodge")+
+  coord_flip() + 
+  geom_hline(yintercept=0) +
+  labs(title="Demographic and Geographic Impact on Rental Prices", x="", y="Change in Rental Price ($) Per Unit Increase", fill="Stat. Sig.") +
+  scale_y_continuous(trans='pseudo_log', breaks = c(-100, -10,0, 10,100, 1000))
+```
+
+### References
+::: {#refs}
+:::
+
+### Appendix
+
+```{r report models}
+#| results: asis
+#| tbl-cap: Stargazer table for model comparison
+#| tbl-pos: t
+#| echo: false
+
+  stargazer(model1, model2, model3, best_model,
+            type = "latex",
+            title = "Linear Regression Results: Model Comparison",
+            se = list(sqrt(diag(robust_se1)),
+                      sqrt(diag(robust_se2)),
+                      sqrt(diag(robust_se3)),
+                      sqrt(diag(robust_se_best))),
+            dep.var.labels = "SAFMR 1BR",
+            single.row = TRUE,
+            column.sep.width = "5pt")
+
+```
