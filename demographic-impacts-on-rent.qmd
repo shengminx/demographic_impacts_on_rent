@@ -1,0 +1,219 @@
+---
+title: "What Drives Rent?"
+subtitle: "A Deep Dive Into People, Place, and Price"
+format: html
+editor: visual
+---
+
+## 
+
+```{r library}
+#| echo: false
+#| warning: false
+#| include: false
+
+
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(openxlsx)
+library(stargazer)
+library(scales)
+library(sandwich)
+
+```
+
+```{r}
+#| echo: false
+#| warning: false
+#| include: false
+
+## Data Processing
+
+data = read.csv("regional_sampled_data.csv")
+
+data = data.frame(data) %>%
+  mutate(across(c(
+    Median.Age,
+    Percent.less.than.high.school,
+    Percent.some.college.or.associates,
+    Percent.college.graduate,
+    Percent.graduate.degree,
+    Median.income.in.past.year,
+    Percent..100.poverty.status,
+    Percent..100.TO.149.poverty.status,
+    Percent..150.poverty.status,
+    Percent.high.school.graduate
+  ), as.numeric))
+
+```
+
+## Linear Regression Model
+
+```{r lm by region NE}
+#| echo: false
+#| warning: false
+
+model_NE = lm(SAFMR.1BR ~ Median.Age+Percent.Males+Percent.Females+
+                Percent.Race..White+Percent.Race..Black+Percent.Race..Native.or.Alaskan+Percent.Race..Asian+Percent.Race..Native.Hawaiian.or.Pacific.Islander+Percent.Race..Hispanic.or.Latino+Percent.speak.another.language.at.home+
+                Percent.never.married+Percent.married+Percent.divorced+Percent.widowed+Percent.Race..Two.or.more.races+
+                Percent.less.than.high.school+Percent.high.school.graduate+Percent.some.college.or.associates+Percent.college.graduate+Percent.graduate.degree+
+                Median.income.in.past.year+Percent.born.in.state.of.residence+Percent..100.poverty.status,
+    data = data[data$Region == 'NE',])
+df_NE = data.frame(summary(model_NE)$coefficients)
+df_NE = df_NE %>%
+  mutate(variables = rownames(df_NE), Region = 'NE')
+rownames(df_NE) = 1:nrow(df_NE)
+
+
+robust_vcov <- vcovHC(model_NE, type = "HC1")
+
+stargazer(model_NE, type = "text", title = "Regression Results for NE Region", se = list(sqrt(diag(robust_vcov))))
+
+```
+
+```{r lm by region NW}
+#| echo: false
+#| warning: false
+
+model_NW = lm(SAFMR.1BR ~ Median.Age+Percent.Males+Percent.Females+
+                Percent.Race..White+Percent.Race..Black+Percent.Race..Native.or.Alaskan+Percent.Race..Asian+Percent.Race..Native.Hawaiian.or.Pacific.Islander+Percent.Race..Hispanic.or.Latino+Percent.speak.another.language.at.home+
+                Percent.never.married+Percent.married+Percent.divorced+Percent.widowed+Percent.Race..Two.or.more.races+
+                Percent.less.than.high.school+Percent.high.school.graduate+Percent.some.college.or.associates+Percent.college.graduate+Percent.graduate.degree+
+                Median.income.in.past.year+Percent.born.in.state.of.residence+Percent..100.poverty.status,
+              data = data[data$Region == 'NW',])
+df_NW = data.frame(summary(model_NW)$coefficients)
+df_NW = df_NW %>%
+  mutate(variables = rownames(df_NW), Region = 'NW')
+rownames(df_NW) = 1:nrow(df_NW)
+
+
+robust_vcov <- vcovHC(model_NW, type = "HC1")
+
+stargazer(model_NW, type = "text", title = "Regression Results for NW Region", se = list(sqrt(diag(robust_vcov))))
+ 
+```
+
+```{r lm by region SE}
+#| echo: false
+#| warning: false
+
+model_SE = lm(SAFMR.1BR ~ Median.Age+Percent.Males+Percent.Females+
+                Percent.Race..White+Percent.Race..Black+Percent.Race..Native.or.Alaskan+Percent.Race..Asian+Percent.Race..Native.Hawaiian.or.Pacific.Islander+Percent.Race..Hispanic.or.Latino+Percent.speak.another.language.at.home+
+                Percent.never.married+Percent.married+Percent.divorced+Percent.widowed+Percent.Race..Two.or.more.races+
+                Percent.less.than.high.school+Percent.high.school.graduate+Percent.some.college.or.associates+Percent.college.graduate+Percent.graduate.degree+
+                Median.income.in.past.year+Percent.born.in.state.of.residence+Percent..100.poverty.status,
+              data = data[data$Region == 'SE',])
+df_SE = data.frame(summary(model_SE)$coefficients)
+df_SE = df_SE %>%
+  mutate(variables = rownames(df_SE), Region = 'SE')
+rownames(df_SE) = 1:nrow(df_SE)
+
+
+robust_vcov <- vcovHC(model_SE, type = "HC1")
+
+stargazer(model_SE, type = "text", title = "Regression Results for SE Region", se = list(sqrt(diag(robust_vcov))))
+
+```
+
+```{r lm by region SW}
+#| echo: false
+#| warning: false
+
+model_SW = lm(SAFMR.1BR ~ Median.Age+Percent.Males+Percent.Females+
+                Percent.Race..White+Percent.Race..Black+Percent.Race..Native.or.Alaskan+Percent.Race..Asian+Percent.Race..Native.Hawaiian.or.Pacific.Islander+Percent.Race..Hispanic.or.Latino+Percent.speak.another.language.at.home+
+                Percent.never.married+Percent.married+Percent.divorced+Percent.widowed+Percent.Race..Two.or.more.races+
+                Percent.less.than.high.school+Percent.high.school.graduate+Percent.some.college.or.associates+Percent.college.graduate+Percent.graduate.degree+
+                Median.income.in.past.year+Percent.born.in.state.of.residence+Percent..100.poverty.status,
+              data = data[data$Region == 'SW',])
+df_SW = data.frame(summary(model_SW)$coefficients)
+df_SW = df_SW %>%
+  mutate(variables = rownames(df_SW), Region = 'SW')
+rownames(df_SW) = 1:nrow(df_SW)
+
+
+robust_vcov <- vcovHC(model_SW, type = "HC1")
+
+stargazer(model_SW, type = "text", title = "Regression Results for SW Region", se = list(sqrt(diag(robust_vcov))))
+
+```
+
+```{r lm by region MW}
+#| echo: false
+
+model_MW = lm(SAFMR.1BR ~ Median.Age+Percent.Males+Percent.Females+
+                Percent.Race..White+Percent.Race..Black+Percent.Race..Native.or.Alaskan+Percent.Race..Asian+Percent.Race..Native.Hawaiian.or.Pacific.Islander+Percent.Race..Hispanic.or.Latino+Percent.speak.another.language.at.home+
+                Percent.never.married+Percent.married+Percent.divorced+Percent.widowed+Percent.Race..Two.or.more.races+
+                Percent.less.than.high.school+Percent.high.school.graduate+Percent.some.college.or.associates+Percent.college.graduate+Percent.graduate.degree+
+                Median.income.in.past.year+Percent.born.in.state.of.residence+Percent..100.poverty.status,
+              data = data[data$Region == 'MW',])
+df_MW = data.frame(summary(model_MW)$coefficients)
+df_MW = df_MW %>%
+  mutate(variables = rownames(df_MW), Region = 'MW')
+rownames(df_MW) = 1:nrow(df_MW)
+
+```
+
+```{r join results}
+#| echo: false
+
+
+df = rbind(df_NE, df_SE, df_SW, df_NW, df_MW) %>%
+  mutate(p_value = Pr...t.., std_error = Std..Error) %>% # Rename p_value and std_error
+  select(variables, Region, Estimate, std_error, t.value, p_value) %>%
+  mutate(Estimate = case_when(variables == "Median.income.in.past.year" ~ Estimate*1000, TRUE ~ Estimate), 
+         Sig = case_when(p_value < 0.001 ~ '***',  # Create significance indicator based on p_value
+                         between(p_value, 0.001, 0.01) ~ '**',
+                         between(p_value, 0.01, 0.05) ~ '*',
+                         between(p_value, 0.05, 0.1) ~ '.',
+                         TRUE ~ ''))
+
+```
+
+## Graph
+
+```{r plot, fig.height=7, fig.width=10}
+#| echo: false
+
+
+plot1 = df %>%
+  select(Region, Estimate, Sig, variables) %>%
+  mutate(var= case_when(variables == "Median.Age" ~ "Median Age",
+                     variables == "Percent.Males" ~ "Male (%)",
+                     variables == "Percent.Race..Black" ~ "Black (%)",
+                     variables == "Percent.Race..Native.or.Alaskan" ~ "Native/Alaskan (%)",
+                     variables == "Percent.Race..Asian" ~ "Asian (%)",
+                     variables == "Percent.Race..Native.Hawaiian.or.Pacific.Islander" ~ "Hawaiian/Pacific Islander (%)",
+                     variables == "Percent.Race..Hispanic.or.Latino" ~ "Hispanic/Latino (%)",
+                     variables == "Median.income.in.past.year" ~ "Median Income ($000)",
+                     variables == "Percent.Race..Two.or.more.races" ~ "2+ Race (%)",
+                     variables == "Percent.less.than.high.school" ~ "Less Than High School (%)",
+                     variables ==  "Percent.married" ~ "Married (%)",
+                     variables ==  "Percent.born.in.state.of.residence" ~ "Born in Residing State (%)",
+                     variables ==  "Percent..100.poverty.status" ~ "Below 100% Poverty Level (%)",
+                     TRUE ~ ""))
+
+plot1 %>% 
+  filter(var %in% c("Median Age",
+                     "Median Income ($000)",
+                     "Male (%)",
+                     "Below 100% Poverty Level (%)",
+                     "Black (%)",
+                     "2+ Race (%)",
+                     "Asian (%)",
+                     "Hispanic/Latino (%)",
+                    "Less Than High School (%)",
+                    "Married (%)",
+                    "Born in Residing State (%)"
+                    )) %>%
+
+  ggplot(aes(x=Region, y=Estimate, fill=factor(Sig, levels=c('', '.', '*', '**', '***'))))+
+  scale_fill_manual(values=c("#e0d7d7", "#ebc3c3", "#d47979","#d63a3a", "#990000")) +
+  facet_wrap(vars(var), ncol=3) +
+  geom_col(position="dodge")+
+  coord_flip() + 
+  geom_hline(yintercept=0) +
+  labs(title="Demographic and Geographic Impact on Rental Prices", x="", y="Change in Rental Price ($) Per Unit Increase", fill="Stat. Sig.") +
+  scale_y_continuous(trans='pseudo_log', breaks = c(-100, -10,0, 10,100, 1000))
+
+```
