@@ -1,0 +1,325 @@
+---
+title: "What Drives Rent?"
+subtitle: "A Deep Dive Into People, Place, and Price"
+output:
+  pdf_document: 
+    latex_engine: xelatex
+    includes:
+      in_header: header.tex
+---
+
+
+
+
+```{r library}
+#| echo: false
+#| warning: false
+#| include: false
+
+
+library(tidyverse)
+library(ggplot2)
+library(dplyr)
+library(openxlsx)
+library(stargazer)
+library(scales)
+library(sandwich)
+
+```
+
+
+## Description of the Data Source
+
+
+Data sources from three publicly available sources were used in this analysis to investigate how demographic and socioeconomic factors relate to rental prices.
+
+1. American Community Survey (ACS) 
+The U.S. Census Bureau conducts the ACS annually to provide detailed demographic, social, economic, and housing data. Approximately 3.5 million addresses are randomly sampled each year, with participation required by law, ensuring a high response rate and robust data quality. The unit of observation in this dataset is the ZIP Code. We used the 2023 ACS S0601 dataset, which includes variables such as median income, educational attainment, racial composition, and housing characteristics, which are core indicators for examining disparities across regions.
+
+2. Fair Market Rent (FMR)
+The U.S. Department of Housing and Urban Development (HUD), through its Office of Policy Development and Research, publishes annual FMR for use in federal housing programs such as Section 8. These rent estimates are calculated using a combination of the Census Bureau’s five-year ACS data (as a base), HUD-defined geographic areas, and adjustments based on the Bureau of Labor Statistics’ Consumer Price Index (CPI). The unit of observation here is also at the ZIP-level, aligning with the ACS data for comparison. FMR serves as a standardized estimate of local rental costs, allowing us to assess rent relative to regional socioeconomic conditions.
+
+3. HUD-USPS ZIP-TRACT Crosswalk File
+To ensure geographic precision and data relevance, we used the 2023 Q2 ZIP-TRACT Crosswalk file developed by HUD in collaboration with the U.S. Postal Service. This dataset links USPS ZIP Codes with Census geographic areas and includes quarterly USPS residential vacancy indicators. We used it to filter out ZIP Codes with low residential ratios or primarily commercial/industrial land use, focusing our analysis on areas where rental data reflects meaningful residential patterns.
+
+
+To ensure balanced sampling across geographic regions, the dataset was stratified into five regions (Midwest, Northeast, Southeast, Southwest, and Northwest) and 1,000 ZIP Codes were randomly selected per region, resulting in a final dataset of 5,000 rows and 37 columns. This consolidated dataframe served as the single source of truth for all subsequent modeling and visualization steps.
+
+
+```{r prepare data}
+#| echo: false
+#| warning: false
+#| include: false
+
+## Data Processing
+
+data = read.csv("data/dataset.csv")
+
+data = data.frame(data) %>%
+  mutate(across(c(
+    Median.Age,
+    Percent.less.than.high.school,
+    Percent.some.college.or.associates,
+    Percent.college.graduate,
+    Percent.graduate.degree,
+    Median.income.in.past.year,
+    Percent..100.poverty.status,
+    Percent..100.TO.149.poverty.status,
+    Percent..150.poverty.status,
+    Percent.high.school.graduate
+  ), as.numeric))
+
+```
+
+## Linear Regression Models
+
+To examine how demographic and socioeconomic factors relate to rent prices across the United States, five separate linear regressions were conducted—one for each region: Northeast (NE), Northwest (NW), Southeast (SE), Southwest (SW), and Midwest (MW). Each model used the SAFMR 1BR variable (Small Area Fair Market Rent for one-bedroom units) as the dependent variable, with demographic indicators such as race, marital status, educational attainment, income, and language use as predictors.
+
+The tables display the full regression results with robust standard errors (HC1) to address potential heteroskedasticity. In the following sections, most notable results from each region are summarized, focusing on statistically significant coefficients (p < 0.05), the direction and magnitude of associations, and any unique patterns that emerge across geographies. 
+
+
+
+## Regression Results for the Northeastern Region
+
+In the Northeast, higher percentages of Black residents and Hispanic/Latino populations are associated with significantly lower rent prices, with coefficients of -80.33 and -67.40 respectively (both p < 0.01). Conversely, a higher percentage of Asian residents is associated with higher rents (+67.64, p < 0.05). Median income also shows a strong positive effect on rent (+0.13 per $1,000, p < 0.01). Educational attainment, marital status, and other demographic variables showed no significant associations in this region.
+
+
+```{r lm by region NE, results='asis'}
+#| echo: false
+#| warning: false
+
+
+model_NE = lm(SAFMR.1BR ~ Median.Age+Percent.Males+Percent.Females+
+                Percent.Race..White+Percent.Race..Black+Percent.Race..Native.or.Alaskan+Percent.Race..Asian+Percent.Race..Native.Hawaiian.or.Pacific.Islander+Percent.Race..Hispanic.or.Latino+Percent.speak.another.language.at.home+
+                Percent.never.married+Percent.married+Percent.divorced+Percent.widowed+Percent.Race..Two.or.more.races+
+                Percent.less.than.high.school+Percent.high.school.graduate+Percent.some.college.or.associates+Percent.college.graduate+Percent.graduate.degree+
+                Median.income.in.past.year+Percent.born.in.state.of.residence+Percent..100.poverty.status,
+    data = data[data$Region == 'NE',])
+df_NE = data.frame(summary(model_NE)$coefficients)
+df_NE = df_NE %>%
+  mutate(variables = rownames(df_NE), Region = 'NE')
+rownames(df_NE) = 1:nrow(df_NE)
+
+
+robust_vcov <- vcovHC(model_NE, type = "HC1")
+
+stargazer(model_NE, type = "latex", title = "Regression Results for NE Region", 
+          se = list(sqrt(diag(robust_vcov))),
+          dep.var.labels = "SAFMR 1BR",
+          column.sep.width = "-2pt",  
+          font.size = "scriptsize",      
+          single.row = TRUE,
+          table.layout = "-d#-t-a-s-n",  
+          style = "default",
+          out.header = FALSE)
+
+```
+
+
+## Regression Results for the Northwestern Region
+
+In the Northwest, rents rise significantly with Median Age (+11.99, p < 0.01) and Median Income (+0.07 per $1,000, p < 0.01). Black (%) and Hispanic/Latino (%) show significant negative associations with rent (-77.70 and -72.97 respectively, p < 0.01). Interestingly, Percent Married has a large positive effect on rent (+74.51, p < 0.01), suggesting a link between household structure and rental prices in the NW region.
+
+
+```{r lm by region NW, results='asis'}
+#| echo: false
+#| warning: false
+
+model_NW = lm(SAFMR.1BR ~ Median.Age+Percent.Males+Percent.Females+
+                Percent.Race..White+Percent.Race..Black+Percent.Race..Native.or.Alaskan+Percent.Race..Asian+Percent.Race..Native.Hawaiian.or.Pacific.Islander+Percent.Race..Hispanic.or.Latino+Percent.speak.another.language.at.home+
+                Percent.never.married+Percent.married+Percent.divorced+Percent.widowed+Percent.Race..Two.or.more.races+
+                Percent.less.than.high.school+Percent.high.school.graduate+Percent.some.college.or.associates+Percent.college.graduate+Percent.graduate.degree+
+                Median.income.in.past.year+Percent.born.in.state.of.residence+Percent..100.poverty.status,
+              data = data[data$Region == 'NW',])
+df_NW = data.frame(summary(model_NW)$coefficients)
+df_NW = df_NW %>%
+  mutate(variables = rownames(df_NW), Region = 'NW')
+rownames(df_NW) = 1:nrow(df_NW)
+
+
+robust_vcov <- vcovHC(model_NW, type = "HC1")
+
+
+stargazer(model_NW, type = "latex", title = "Regression Results for NW Region", 
+          se = list(sqrt(diag(robust_vcov))),
+          dep.var.labels = "SAFMR 1BR",
+          column.sep.width = "-2pt",  
+          font.size = "scriptsize",      
+          single.row = TRUE,
+          table.layout = "-d#-t-a-s-n",  
+          style = "default",
+          float = TRUE,
+          out.header = FALSE)
+
+```
+
+## Regression Results for the Southeastern Region
+
+In the Southeast, Percent Asian residents have a positive and significant association with rent prices (+84.75, p < 0.01). In contrast, Percent Hispanic/Latino and Percent with Less than High School education are both linked to lower rents (-59.58 and -61.97 respectively, p < 0.01). Percent Married again shows a strong positive link to higher rents (+71.86, p < 0.01), consistent with patterns observed in the Northwest.
+
+
+```{r lm by region SE, results='asis'}
+#| echo: false
+#| warning: false
+
+model_SE = lm(SAFMR.1BR ~ Median.Age+Percent.Males+Percent.Females+
+                Percent.Race..White+Percent.Race..Black+Percent.Race..Native.or.Alaskan+Percent.Race..Asian+Percent.Race..Native.Hawaiian.or.Pacific.Islander+Percent.Race..Hispanic.or.Latino+Percent.speak.another.language.at.home+
+                Percent.never.married+Percent.married+Percent.divorced+Percent.widowed+Percent.Race..Two.or.more.races+
+                Percent.less.than.high.school+Percent.high.school.graduate+Percent.some.college.or.associates+Percent.college.graduate+Percent.graduate.degree+
+                Median.income.in.past.year+Percent.born.in.state.of.residence+Percent..100.poverty.status,
+              data = data[data$Region == 'SE',])
+df_SE = data.frame(summary(model_SE)$coefficients)
+df_SE = df_SE %>%
+  mutate(variables = rownames(df_SE), Region = 'SE')
+rownames(df_SE) = 1:nrow(df_SE)
+
+
+robust_vcov <- vcovHC(model_SE, type = "HC1")
+
+stargazer(model_SE, type = "latex", title = "Regression Results for SE Region", 
+          se = list(sqrt(diag(robust_vcov))),
+          dep.var.labels = "SAFMR 1BR",
+          column.sep.width = "-2pt",  
+          font.size = "scriptsize",      
+          single.row = TRUE,
+          table.layout = "-d#-t-a-s-n",  
+          style = "default",
+          out.header = FALSE)
+
+```
+
+
+## Regression Results for the Southwestern Region
+
+The Southwest model shows strong negative associations between rent and both Percent Hispanic/Latino (-75.64, p < 0.01) and Percent Less Than High School (-73.78, p < 0.01). Median Income remains a significant positive predictor (+0.11 per $1,000, p < 0.01). Like in the NW and SE, Percent Married has a positive and statistically significant effect on rent (+68.36, p < 0.01).
+
+
+```{r lm by region SW, results='asis'}
+#| echo: false
+#| warning: false
+
+model_SW = lm(SAFMR.1BR ~ Median.Age+Percent.Males+Percent.Females+
+                Percent.Race..White+Percent.Race..Black+Percent.Race..Native.or.Alaskan+Percent.Race..Asian+Percent.Race..Native.Hawaiian.or.Pacific.Islander+Percent.Race..Hispanic.or.Latino+Percent.speak.another.language.at.home+
+                Percent.never.married+Percent.married+Percent.divorced+Percent.widowed+Percent.Race..Two.or.more.races+
+                Percent.less.than.high.school+Percent.high.school.graduate+Percent.some.college.or.associates+Percent.college.graduate+Percent.graduate.degree+
+                Median.income.in.past.year+Percent.born.in.state.of.residence+Percent..100.poverty.status,
+              data = data[data$Region == 'SW',])
+df_SW = data.frame(summary(model_SW)$coefficients)
+df_SW = df_SW %>%
+  mutate(variables = rownames(df_SW), Region = 'SW')
+rownames(df_SW) = 1:nrow(df_SW)
+
+
+robust_vcov <- vcovHC(model_SW, type = "HC1")
+
+stargazer(model_SW, type = "latex", title = "Regression Results for SW Region", 
+          se = list(sqrt(diag(robust_vcov))),
+          dep.var.labels = "SAFMR 1BR",
+          column.sep.width = "-2pt",  
+          font.size = "scriptsize",      
+          single.row = TRUE,
+          table.layout = "-d#-t-a-s-n",  
+          style = "default",
+          out.header = FALSE)
+
+```
+
+
+## Regression Results for the Midwest Region
+
+In the Midwest, Black (%) is associated with significantly lower rents (-62.41, p < 0.01), as is Percent Less Than High School (-65.66, p < 0.01). The positive association between Median Income and rent persists here (+0.12 per $1,000, p < 0.01). Unique to this region, Percent Native Hawaiian or Pacific Islander has a significant positive coefficient (+318.45, p < 0.01), though the sample size for this group may be small.
+
+
+```{r lm by region MW, results='asis'}
+#| echo: false
+#| warning: false
+
+model_MW = lm(SAFMR.1BR ~ Median.Age+Percent.Males+Percent.Females+
+                Percent.Race..White+Percent.Race..Black+Percent.Race..Native.or.Alaskan+Percent.Race..Asian+Percent.Race..Native.Hawaiian.or.Pacific.Islander+Percent.Race..Hispanic.or.Latino+Percent.speak.another.language.at.home+
+                Percent.never.married+Percent.married+Percent.divorced+Percent.widowed+Percent.Race..Two.or.more.races+
+                Percent.less.than.high.school+Percent.high.school.graduate+Percent.some.college.or.associates+Percent.college.graduate+Percent.graduate.degree+
+                Median.income.in.past.year+Percent.born.in.state.of.residence+Percent..100.poverty.status,
+              data = data[data$Region == 'MW',])
+df_MW = data.frame(summary(model_MW)$coefficients)
+df_MW = df_MW %>%
+  mutate(variables = rownames(df_MW), Region = 'MW')
+rownames(df_MW) = 1:nrow(df_MW)
+
+robust_vcov <- vcovHC(model_SW, type = "HC1")
+
+stargazer(model_MW, type = "latex", title = "Regression Results for MW Region", 
+          se = list(sqrt(diag(robust_vcov))),
+          dep.var.labels = "SAFMR 1BR",
+          column.sep.width = "-2pt",  
+          font.size = "scriptsize",      
+          single.row = TRUE,
+          table.layout = "-d#-t-a-s-n",  
+          style = "default",
+          out.header = FALSE)
+
+```
+
+```{r join results}
+#| echo: false
+
+
+df = rbind(df_NE, df_SE, df_SW, df_NW, df_MW) %>%
+  mutate(p_value = Pr...t.., std_error = Std..Error) %>% # Rename p_value and std_error
+  select(variables, Region, Estimate, std_error, t.value, p_value) %>%
+  mutate(Estimate = case_when(variables == "Median.income.in.past.year" ~ Estimate*1000, TRUE ~ Estimate), 
+         Sig = case_when(p_value < 0.001 ~ '***',  # Create significance indicator based on p_value
+                         between(p_value, 0.001, 0.01) ~ '**',
+                         between(p_value, 0.01, 0.05) ~ '*',
+                         between(p_value, 0.05, 0.1) ~ '.',
+                         TRUE ~ ''))
+
+```
+
+## Graph
+
+```{r plot, fig.height=7, fig.width=10}
+#| echo: false
+
+
+plot1 = df %>%
+  select(Region, Estimate, Sig, variables) %>%
+  mutate(var= case_when(variables == "Median.Age" ~ "Median Age",
+                     variables == "Percent.Males" ~ "Male (%)",
+                     variables == "Percent.Race..Black" ~ "Black (%)",
+                     variables == "Percent.Race..Native.or.Alaskan" ~ "Native/Alaskan (%)",
+                     variables == "Percent.Race..Asian" ~ "Asian (%)",
+                     variables == "Percent.Race..Native.Hawaiian.or.Pacific.Islander" ~ "Hawaiian/Pacific Islander (%)",
+                     variables == "Percent.Race..Hispanic.or.Latino" ~ "Hispanic/Latino (%)",
+                     variables == "Median.income.in.past.year" ~ "Median Income ($000)",
+                     variables == "Percent.Race..Two.or.more.races" ~ "2+ Race (%)",
+                     variables == "Percent.less.than.high.school" ~ "Less Than High School (%)",
+                     variables ==  "Percent.married" ~ "Married (%)",
+                     variables ==  "Percent.born.in.state.of.residence" ~ "Born in Residing State (%)",
+                     variables ==  "Percent..100.poverty.status" ~ "Below 100% Poverty Level (%)",
+                     TRUE ~ ""))
+
+plot1 %>% 
+  filter(var %in% c("Median Age",
+                     "Median Income ($000)",
+                     "Male (%)",
+                     "Below 100% Poverty Level (%)",
+                     "Black (%)",
+                     "2+ Race (%)",
+                     "Asian (%)",
+                     "Hispanic/Latino (%)",
+                    "Less Than High School (%)",
+                    "Married (%)",
+                    "Born in Residing State (%)"
+                    )) %>%
+
+  ggplot(aes(x=Region, y=Estimate, fill=factor(Sig, levels=c('', '.', '*', '**', '***'))))+
+  scale_fill_manual(values=c("#e0d7d7", "#ebc3c3", "#d47979","#d63a3a", "#990000")) +
+  facet_wrap(vars(var), ncol=3) +
+  geom_col(position="dodge")+
+  coord_flip() + 
+  geom_hline(yintercept=0) +
+  labs(title="Demographic and Geographic Impact on Rental Prices", x="", y="Change in Rental Price ($) Per Unit Increase", fill="Stat. Sig.") +
+  scale_y_continuous(trans='pseudo_log', breaks = c(-100, -10,0, 10,100, 1000))
+
+
+```
