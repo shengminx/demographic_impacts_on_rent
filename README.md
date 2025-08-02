@@ -1,6 +1,6 @@
 # What Drives Rent: A Deep Dive Into People, Place, and Price
 
-This analysis investigates how demographic and socioeconomic factors influence one-bedroom rental prices (SAFMR 1BR) across five U.S. regions: Northeast, Northwest, Southeast, Southwest, and Midwest. Using ZIP Code–level data merged from ACS, HUD FMR, and HUD-USPS crosswalk files, region-specific linear regression models with robust standard errors were applied to identify significant predictors of rent variation. The goal is to quantify localized effects of variables such as race, income, education, and marital status on rental housing costs.
+This analysis investigates how demographic and socioeconomic factors influence one-bedroom rental prices across five U.S. regions: Northeast, Northwest, Southeast, Southwest, and Midwest. Using ZIP Code–level data merged from ACS, HUD FMR, and HUD-USPS crosswalk files, region-specific linear regression models with robust standard errors were applied to identify significant predictors of rent variation. The goal is to quantify localized effects of variables such as race, income, education, and marital status on rental housing costs.
 
 ---
 
@@ -8,17 +8,13 @@ This analysis investigates how demographic and socioeconomic factors influence o
 
 Data sources from three publicly available sources were used in this analysis to investigate how demographic and socioeconomic factors relate to rental prices.
 
-1. American Community Survey (ACS) 
-The U.S. Census Bureau conducts the ACS annually to provide detailed demographic, social, economic, and housing data. Approximately 3.5 million addresses are randomly sampled each year, with participation required by law, ensuring a high response rate and robust data quality. The unit of observation in this dataset is the ZIP Code. We used the 2023 ACS S0601 dataset, which includes variables such as median income, educational attainment, racial composition, and housing characteristics, which are core indicators for examining disparities across regions.
+1. The geographic and demographic data are derived from the American Community Survey (ACS) conducted by the U.S. Census Bureau. The 2023 ACS S0601 dataset used in this analysis contains variables including median income, educational attainment, racial composition, and housing characteristics.
 
-2. Fair Market Rent (FMR)
-The U.S. Department of Housing and Urban Development (HUD), through its Office of Policy Development and Research, publishes annual FMR for use in federal housing programs such as Section 8. These rent estimates are calculated using a combination of the Census Bureau’s five-year ACS data (as a base), HUD-defined geographic areas, and adjustments based on the Bureau of Labor Statistics’ Consumer Price Index (CPI). The unit of observation here is also at the ZIP-level, aligning with the ACS data for comparison. FMR serves as a standardized estimate of local rental costs, allowing us to assess rent relative to regional socioeconomic conditions.
+2. Rent data is derived from the 2023 Fair Market Rent (FMR) published annually by the U.S. Department of Housing and Urban Development (HUD), which contains rent estimates calculated using a combination of the ACS, HUD, and Consumer Price Index data.
 
-3. HUD-USPS ZIP-TRACT Crosswalk File
-To ensure geographic precision and data relevance, we used the 2023 Q2 ZIP-TRACT Crosswalk file developed by HUD in collaboration with the U.S. Postal Service. This dataset links USPS ZIP Codes with Census geographic areas and includes quarterly USPS residential vacancy indicators. We used it to filter out ZIP Codes with low residential ratios or primarily commercial/industrial land use, focusing our analysis on areas where rental data reflects meaningful residential patterns.
+3. Residential vacancy indicators are derived from ZIP-Track Crosswalk files produced by HUD in collaboration with the U.S. Postal Service. The 2023 Q2 file used filters out ZIP Codes with low residential ratios or primarily commercial/industrial land use, allowing the analysis to focus on deriving meaningful insights from relevant areas.
 
-
-To ensure balanced sampling across geographic regions, the dataset was stratified into five regions (Midwest, Northeast, Southeast, Southwest, and Northwest) and 1,000 ZIP Codes were randomly selected per region, resulting in a final dataset of 5,000 rows and 37 columns. This consolidated dataframe served as the single source of truth for all subsequent modeling and visualization steps.
+To ensure balanced sampling across geographic regions, the dataset was stratified into five regions (Midwest, Northeast, Southeast, Southwest, and Northwest), and 1,000 ZIP Codes were randomly selected per region, resulting in a final dataset of 5,000 rows and 37 columns. This consolidated dataframe serves as the basis for all models and visualizations below.
 
 ---
 
@@ -78,6 +74,7 @@ Across all five regions, median income is the most consistently impactful variab
 
 Overall, the graph highlights that while income is a strong universal predictor of rent, the influence of race, education, and marital structure varies meaningfully by region. The presence of consistent negative rent associations for Black and Hispanic/Latino populations underscores persistent structural disparities, even after controlling for income and other demographic variables. Meanwhile, positive associations with educational attainment and marriage suggest that perceived indicators of socioeconomic status are embedded in how rent is priced at the neighborhood level.
 
+
 ![Demographic and Geographic Impact on Rental Prices](tables-graphs/rental-price-impact-factors.png)
 
 ---
@@ -102,7 +99,7 @@ Overall, the graph highlights that while income is a strong universal predictor 
 
 ## Citation
 
-U.S. Census Bureau, “S0601 Selected Characteristics of the Total and Native Populations in the United States”, <https://data.census.gov/table?q=s0601>, accessed on March 25, 2025.
+U.S. Census Bureau, “S0601 Selected Characteristics of the Total and Native Populations in the United States”, <<https://data.census.gov/table?q=s0601>>, accessed on March 25, 2025.
 
 HUD User’s Office of Policy Development and Research, “Fair Market Rents”, <www.huduser.gov/portal/datasets/fmr.html>, accessed on March 25, 2025.
 
