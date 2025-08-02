@@ -70,6 +70,18 @@ In the Midwest, Black (%) is associated with significantly lower rents (-62.41, 
 
 ---
 
+## Demographic and Geographic Impact on Rental Prices
+
+The graph illustrates the estimated change in rental prices associated with one-unit increases in various demographic and socioeconomic indicators, based on region-specific linear regression models. Each bar represents a coefficient from the model, color-coded by statistical significance (from p < 0.1 being lightest to p < 0.001 being darkest), and measured in dollars per unit increase in the variable.
+
+Across all five regions, median income is the most consistently impactful variable, showing a strong and statistically significant positive association with rent prices. A $1,000 increase in median income within a ZIP Code is associated with a $60 to $120 increase in the SAFMR 1-bedroom rent estimate. 
+
+Overall, the graph highlights that while income is a strong universal predictor of rent, the influence of race, education, and marital structure varies meaningfully by region. The presence of consistent negative rent associations for Black and Hispanic/Latino populations underscores persistent structural disparities, even after controlling for income and other demographic variables. Meanwhile, positive associations with educational attainment and marriage suggest that perceived indicators of socioeconomic status are embedded in how rent is priced at the neighborhood level.
+
+![Demographic and Geographic Impact on Rental Prices](tables-graphs/rental-price-impact-factors.png)
+
+---
+
 ## Files
 
 - `demographic-impacts-on-rent.pdf`: Rendered PDF version of the report
