@@ -6,13 +6,13 @@ This analysis investigates how demographic and socioeconomic factors influence o
 
 ## Description of Data Source
 
-Data sources from three publicly available sources were used in this analysis to investigate how demographic and socioeconomic factors relate to rental prices.
+Data from three publicly available sourcess were used in this analysis to investigate how demographic and socioeconomic factors relate to rental prices.
 
-1. The geographic and demographic data are derived from the American Community Survey (ACS) conducted by the U.S. Census Bureau. The 2023 ACS S0601 dataset used in this analysis contains variables including median income, educational attainment, racial composition, and housing characteristics.
+1. The geographic and demographic data are derived from the American Community Survey (ACS) conducted by the U.S. Census Bureau.
 
-2. Rent data is derived from the 2023 Fair Market Rent (FMR) published annually by the U.S. Department of Housing and Urban Development (HUD), which contains rent estimates calculated using a combination of the ACS, HUD, and Consumer Price Index data.
+2. Rent data is derived from the 2023 Fair Market Rent (FMR) published annually by the U.S. Department of Housing and Urban Development (HUD).
 
-3. Residential vacancy indicators are derived from ZIP-Track Crosswalk files produced by HUD in collaboration with the U.S. Postal Service. The 2023 Q2 file used filters out ZIP Codes with low residential ratios or primarily commercial/industrial land use, allowing the analysis to focus on deriving meaningful insights from relevant areas.
+3. Residential vacancy indicators are derived from ZIP-Track Crosswalk files produced by HUD in collaboration with the U.S. Postal Service.
 
 To ensure balanced sampling across geographic regions, the dataset was stratified into five regions (Midwest, Northeast, Southeast, Southwest, and Northwest), and 1,000 ZIP Codes were randomly selected per region, resulting in a final dataset of 5,000 rows and 37 columns. This consolidated dataframe serves as the basis for all models and visualizations below.
 
